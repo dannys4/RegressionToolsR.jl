@@ -4,6 +4,7 @@ import GLM
 import DataFrames
 import LinearAlgebra
 import Distributions
+import StatsBase
 
 """
 Predict the linear response of `xf` when using formula `fm` on DataFrame `df`,

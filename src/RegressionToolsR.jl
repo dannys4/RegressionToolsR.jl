@@ -2,9 +2,9 @@ module RegressionToolsR
 
 import GLM
 import DataFrames
-import LinearAlgebra
-import Distributions
-import StatsBase
+import LinearAlgebra: inv
+import Distributions: TDist
+import StatsBase: RegressionModel
 
 export predint, rstudent
 

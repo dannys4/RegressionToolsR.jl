@@ -16,7 +16,7 @@ Predict the linear response of `xf` when using given *strictly* linear model. Mo
     predint(mdl, xf[, p])
 
 # Arguments:
-- `mod::RegressionModel`: A strictly linear model with no transform on the formula.
+- `mdl::RegressionModel`: A strictly linear model with no transform on the formula.
 - `xf::AbstractArray`: An array of locations on the x-axis to forecast
 - `p::Float64=0.95`: The certainty we want to have (e.g. default = 0.95, which gives
         a 95% confidence interval)
@@ -31,7 +31,8 @@ Predict the linear response of `xf` when using given *strictly* linear model. Mo
 julia> using DataFrames, GLM
 julia> n = 10; x = rand(n); y = 4*x+0.05*rand(n);
 julia> df = DataFrame(X = x, Y = y); fm = @formula(Y ~ X);
-julia> yf, dev = predint(df, fm, 0:0.5:10);
+julia> mdl = lm(fm, df);
+julia> yf, dev = predint(mdl, 0:0.5:10);
 julia> using Plots
 julia> plot((xf, yf), ribbon=dev, fillalpha=0.25, lab="Prediction", linewidth=3);
 julia> scatter!((x, y), lab="Data");
@@ -39,15 +40,15 @@ julia> title!("Example usage of predint");
 ```
 See also: [`confint`](@ref)
 """
-function predint(mod::RegressionModel, xf::AbstractArray, p::Float64=0.95)
+function predint(mdl::RegressionModel, xf::AbstractArray, p::Float64=0.95)
     # TODO: Ensure that `mod` is purely linear and of one variable
     # Convert `p` into a quantile-compatible format
     p = 0.5 + p/2;
-    x = mod.model.pp.X[:,2]; # Get the vector
-    y = mod.model.rr.y;
+    x = mdl.model.pp.X[:,2]; # Get the vector
+    y = mdl.model.rr.y;
     n = length(x); # Get the dimension of the dataset
-    x_sym = mod.mf.f.rhs.sym; # Get the symbols
-    y_sym = mod.mf.f.lhs.sym;
+    x_sym = mdl.mf.f.rhs.sym; # Get the symbols
+    y_sym = mdl.mf.f.lhs.terms[2].sym;
     s2 = var(y); # Calculate the sample variance of y
     sx2 = var(x); # Calculate the sample variance of x
     xbar = mean(x); # Calculate the sample mean in x
@@ -56,7 +57,7 @@ function predint(mod::RegressionModel, xf::AbstractArray, p::Float64=0.95)
     # Get the t-value for the given p
     t_p = quantile(TDist(n), p);
     # Get the forecasted values
-    pred = predict(mod, eval(:(DataFrame($x_sym = $xf))));
+    pred = predict(mdl, eval(:(DataFrame($x_sym = $xf))));
     # Calculate the deviance for the prediction interval
     dev = t_p*sse;
     # Calculate the interval

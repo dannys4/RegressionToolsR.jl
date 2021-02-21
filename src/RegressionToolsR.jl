@@ -13,11 +13,10 @@ export predint, rstudent
 Predict the linear response of `xf` when using formula `fm` on DataFrame `df`,
   then return the prediction interval of probability `p`.
 
-    predint(df, fm, xf[, p])
+    predint(mod, xf[, p])
 
 # Arguments:
-- `df::DataFrame`: A DataFrame with the regressor and regressee in it as columns
-- `fm::Formula`: A formula you would use with GLM for a LinearModel
+- `mod::RegressionModel`: A strictly linear model with no transform on the formula.
 - `xf::AbstractArray`: An array of locations on the x-axis to forecast
 - `p::Float64=0.95`: The certainty we want to have (e.g. default = 0.95, which gives
         a 95% confidence interval)
@@ -25,7 +24,6 @@ Predict the linear response of `xf` when using formula `fm` on DataFrame `df`,
 # Returns:
 - `pred::Array{Union{Missing, Float64}}((n,))`: Predicted values for given xf,
     `n` is the length of `xf`.
-- `interval::Array{Float64}((n, 2))`: For each point, give the prediction interval.
 - `dev::Array{Float64}((n,))`: Deviation from the prediction that the interval has.
 
 # Examples
@@ -33,7 +31,7 @@ Predict the linear response of `xf` when using formula `fm` on DataFrame `df`,
 julia> using DataFrames, GLM
 julia> n = 10; x = rand(n); y = 4*x+0.05*rand(n);
 julia> df = DataFrame(X = x, Y = y); fm = @formula(Y ~ X);
-julia> yf, interval, dev = predint(df, fm, 0:0.5:10);
+julia> yf, dev = predint(df, fm, 0:0.5:10);
 julia> using Plots
 julia> plot((xf, yf), ribbon=dev, fillalpha=0.25, lab="Prediction", linewidth=3);
 julia> scatter!((x, y), lab="Data");

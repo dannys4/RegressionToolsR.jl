@@ -2,7 +2,7 @@ module RegressionToolsR
 
 import GLM
 import DataFrames
-import LinearAlgebra: inv
+import LinearAlgebra: inv, diag
 import Distributions: TDist
 import StatsBase: RegressionModel
 

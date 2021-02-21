@@ -10,10 +10,10 @@ import StatsBase: RegressionModel
 export predint, rstudent
 
 """
-Predict the linear response of `xf` when using formula `fm` on DataFrame `df`,
-  then return the prediction interval of probability `p`.
+Predict the linear response of `xf` when using given *strictly* linear model. Model
+    must have been created using a DataFrame
 
-    predint(mod, xf[, p])
+    predint(mdl, xf[, p])
 
 # Arguments:
 - `mod::RegressionModel`: A strictly linear model with no transform on the formula.
@@ -43,11 +43,11 @@ function predint(mod::RegressionModel, xf::AbstractArray, p::Float64=0.95)
     # TODO: Ensure that `mod` is purely linear and of one variable
     # Convert `p` into a quantile-compatible format
     p = 0.5 + p/2;
-    n = nrow(df); # Get the dimension of the dataset
+    x = mod.model.pp.X[:,2]; # Get the vector
+    y = mod.model.rr.y;
+    n = length(x); # Get the dimension of the dataset
     x_sym = mod.mf.f.rhs.sym; # Get the symbols
     y_sym = mod.mf.f.lhs.sym;
-    X = mod.model.pp.X[:,2]; # Get the vector
-    y = mod.model.rr.y;
     s2 = var(y); # Calculate the sample variance of y
     sx2 = var(x); # Calculate the sample variance of x
     xbar = mean(x); # Calculate the sample mean in x

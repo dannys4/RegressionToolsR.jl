@@ -67,6 +67,7 @@ end
 Calculate the studentized residuals of a model `mdl`
 
     rstudent(mdl)
+
 # Arguments
   - `mdl::RegressionModel`- A regression model compatible with the GLM package
 
@@ -83,8 +84,8 @@ julia> s_res = rstudent(mdl);
 julia> using Plots;
 julia> qqnorm(s_res);
 ```
-See also: [`residuals`](@ref)
 
+See also: [`residuals`](@ref)
 """
 function rstudent(mdl::RegressionModel)
     X = mdl.model.pp.X; # Get the data matrix

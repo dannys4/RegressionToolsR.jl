@@ -38,7 +38,7 @@ julia> title!("Example usage of predint");
 ```
 See also: [`confint`](@ref)
 """
-function predint(mod::RegressionModel, xf::AbstractArray, p::Float64=0.95)
+function predint(mod::StatsBase.RegressionModel, xf::AbstractArray, p::Float64=0.95)
     # TODO: Ensure that `mod` is purely linear and of one variable
     # Convert `p` into a quantile-compatible format
     p = 0.5 + p/2;
@@ -88,7 +88,7 @@ julia> qqnorm(s_res);
 
 See also: [`residuals`](@ref)
 """
-function rstudent(mdl::RegressionModel)
+function rstudent(mdl::StatsBase.RegressionModel)
     X = mdl.model.pp.X; # Get the data matrix
     # Calculate the Least Squares projection to get leverage
     h = diag(X*inv(transpose(X)*X)*transpose(X));

@@ -2,10 +2,10 @@ module RegressionToolsR
 
 import GLM
 import DataFrames
-import Statistics: quantile
+import Statistics: quantile, var
 import LinearAlgebra: inv, diag
 import Distributions: TDist
-import StatsBase: RegressionModel
+import StatsBase: RegressionModel, predict
 
 export predint, rstudent
 

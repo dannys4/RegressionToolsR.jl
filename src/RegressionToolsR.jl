@@ -2,7 +2,7 @@ module RegressionToolsR
 
 import GLM
 import DataFrames
-import Statistics: quantile, var
+import Statistics: quantile, var, mean
 import LinearAlgebra: inv, diag
 import Distributions: TDist
 import StatsBase: RegressionModel, predict
@@ -60,8 +60,6 @@ function predint(mdl::RegressionModel, xf::AbstractArray, p::Float64=0.95)
     pred = predict(mdl, eval(:(DataFrame($x_sym = $xf))));
     # Calculate the deviance for the prediction interval
     dev = t_p*sse;
-    # Calculate the interval
-    interval = pred .+ dev*[-1 1];
     # Return all the appropriate values
     return pred, dev
 end

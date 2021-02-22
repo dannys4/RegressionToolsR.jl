@@ -5,7 +5,7 @@ using DataFrames
 import Statistics: quantile, var, mean
 import LinearAlgebra: inv, diag
 import Distributions: TDist
-import StatsBase: RegressionModel
+import StatsBase: RegressionModel, predict
 
 export predint, rstudent
 

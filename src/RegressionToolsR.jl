@@ -1,13 +1,13 @@
 module RegressionToolsR
 
-import GLM
+using GLM
 using DataFrames
 import Statistics: quantile, var, mean
-import LinearAlgebra: inv, diag
+import LinearAlgebra: inv, diag, PosDefException
 import Distributions: TDist
-import StatsBase: RegressionModel, predict
+using StatsBase
 
-export predint, rstudent
+export predint, rstudent, stepwise
 
 """
 Predict the linear response of `xf` when using given *strictly* linear model. Model
@@ -28,7 +28,7 @@ Predict the linear response of `xf` when using given *strictly* linear model. Mo
 
 # Examples
 ```jldoctest
-julia> using DataFrames, GLM
+julia> using DataFrames, GLM, RegressionToolsR
 julia> n = 10; x = rand(n); y = 4*x+0.05*rand(n);
 julia> df = DataFrame(X = x, Y = y); fm = @formula(Y ~ X);
 julia> mdl = lm(fm, df);
@@ -70,14 +70,14 @@ Calculate the studentized residuals of a model `mdl`
     rstudent(mdl)
 
 # Arguments
-  - `mdl::RegressionModel`- A regression model compatible with the GLM package
+  - `mdl::RegressionModel`: A regression model compatible with the GLM package
 
 # Returns
-  - `s_res::Array{float64}((n,))`- The studentized residual for each predicted value
+  - `s_res::Array{Float64}((n,))`: The studentized residual for each predicted value
 
 # Examples
 ```jldoctest
-julia> using DataFrames, GLM
+julia> using DataFrames, GLM, RegressionToolsR
 julia> n = 10; x = rand(n); y = 4*x+0.05*rand(n);
 julia> df = DataFrame(X = x, Y = y); fm = @formula(Y ~ X);
 julia> mdl = lm(fm, df);
@@ -103,6 +103,95 @@ function rstudent(mdl::RegressionModel)
     # Calculate studentized residuals
     s_res = res ./ sqrt.(s_hat_sq .* (1 .- h));
     return s_res
+end
+
+# Credit to https://stackoverflow.com/questions/49794476/backward-elimination-forward-selection-in-multilinear-regression-in-julia
+
+"""
+Create a formula for linear regression from a number of Symbols
+    compose(lhs, rhs)
+
+# Arguments
+    - `lhs::Symbol`: The dependent/response variable
+    - `rhs::AbstractVector{Symbol}`: The independent/regressor variables
+
+# Returns
+    `fm::FormulaTerm`: A formula representing the regression
+"""
+function compose(lhs::Symbol, rhs::AbstractVector{Symbol})::FormulaTerm
+    return Term(lhs) ~ sum([ConstantTerm(1), Term.(rhs)...]);
+end
+
+"""
+Perform one step of stepwise regression
+    step(df, lhs, rhs, forward, use_aic)
+
+# Arguments
+    - `df::DataFrame`: DataFrame we are using
+    - `lhs::Symbol`: The dependent/response variable
+    - `rhs::AbstractVector{Symbol}`: The current used regressor variables
+    - `forward::Bool`: Whether we use forward or backward steps
+    - `use_aic::Bool`: Whether to use `aic` or `bic`
+
+# Returns
+    - `best_rhs::Array{Symbol,1}`: A new `rhs` with at most one more regressor
+    - `improved::Bool`: Whether any new regression variable was added
+"""
+function step(df::DataFrame, lhs::Symbol, rhs::AbstractVector{Symbol},
+              forward::Bool, use_aic::Bool)::Tuple{Array{Symbol,1},Bool}
+    options = forward ? setdiff(Symbol.(names(df)), [lhs; rhs]) : rhs
+    fun = use_aic ? aic : bic
+    if(isempty(options))
+        return (rhs, false)
+    end
+    best_fun = fun(lm(compose(lhs, rhs), df))
+    improved = false
+    best_rhs = rhs
+    for opt in options
+        this_rhs = forward ? [rhs; opt] : setdiff(rhs, [opt])
+        fm = compose(lhs, this_rhs);
+        mdl = lm(fm, df);
+        this_fun = fun(mdl);
+        if this_fun < best_fun
+            best_fun = this_fun
+            best_rhs = this_rhs
+            improved = true
+        end
+    end
+    return best_rhs, improved
+end
+
+
+"""
+Perform stepwise regression on a dataframe, similar to stepAIC or stepBIC in R
+    stepwise(df, lhs[, forward = true, use_aic = true])
+
+# Arguments
+    - `df::DataFrame`: The DataFrame that is being modeled
+    - `lhs::Symbol`: A symbolic version of the column being regressed on
+    - `forward::Bool`: *optional* Whether to do forward or backward regression
+    - `use_aic::Bool`: *optional* Whether to use `aic` function or `bic` function.
+# Returns
+    - `mdl::RegressionModel`: A linear model representing the best terms to use
+
+# Examples
+```jldoctest
+julia> using DataFrames, GLM, RegressionToolsR, RDatasets
+julia> df = dataset("datasets", "swiss")[:,2:end]
+julia> mdl = stepwise(df, :Fertility);
+```
+
+See also: [`lm`](@ref), [`aic`](@ref), [`bic`](@ref)
+"""
+function stepwise(df::DataFrame, lhs::Symbol; forward::Bool=true,
+                  use_aic::Bool=true)::RegressionModel
+    rhs = forward ? Symbol[] : setdiff(names(df), [lhs])
+    while true
+        rhs, improved = step(df, lhs, rhs, forward, use_aic)
+        if(!improved)
+            return lm(compose(lhs, rhs), df)
+        end
+    end
 end
 
 end # module

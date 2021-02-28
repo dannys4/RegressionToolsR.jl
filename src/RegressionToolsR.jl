@@ -7,7 +7,7 @@ import LinearAlgebra: inv, diag, PosDefException
 import Distributions: TDist
 using StatsBase
 
-export predint, rstudent, stepwise
+export predint, rstudent, stepwise, step
 
 """
 Predict the linear response of `xf` when using given *strictly* linear model. Model
@@ -40,7 +40,7 @@ julia> title!("Example usage of predint");
 ```
 See also: [`confint`](@ref)
 """
-function predint(mdl::RegressionModel, xf::AbstractArray, p::Float64=0.95)
+function predint(mdl::RegressionModel, xf::AbstractArray; p::Float64=0.95)
     # TODO: Ensure that `mod` is purely linear and of one variable
     # Convert `p` into a quantile-compatible format
     p = 0.5 + p/2;
@@ -164,7 +164,8 @@ end
 
 """
 Perform stepwise regression on a dataframe, similar to stepAIC or stepBIC in R
-    stepwise(df, lhs[, forward = true, use_aic = true])
+
+    `stepwise(df, lhs[, forward = true, use_aic = true])`
 
 # Arguments
     - `df::DataFrame`: The DataFrame that is being modeled

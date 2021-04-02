@@ -163,6 +163,27 @@ end
 
 
 """
+Perform one step of stepwise regression
+    step(df, lhs, rhs, forward, use_aic)
+
+# Arguments
+    - `df::DataFrame`: DataFrame we are using
+    - `lhs::Symbol`: The dependent/response variable
+    - `rhs::Symbol`: The current used regressor variable
+    - `forward::Bool`: Whether we use forward or backward steps
+    - `use_aic::Bool`: Whether to use `aic` or `bic`
+
+# Returns
+    - `best_rhs::Array{Symbol,1}`: A new `rhs` with at most one more regressor
+    - `improved::Bool`: Whether any new regression variable was added
+"""
+function step(df::DataFrame, lhs::Symbol, rhs::Symbol,
+              forward::Bool, use_aic::Bool)::Tuple{Array{Symbol,1},Bool}
+    return step(df, lhs, [rhs], forward, use_aic);
+end
+
+
+"""
 Perform stepwise regression on a dataframe, similar to stepAIC or stepBIC in R
 
     `stepwise(df, lhs[, forward = true, use_aic = true])`

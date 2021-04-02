@@ -207,7 +207,7 @@ See also: [`lm`](@ref), [`aic`](@ref), [`bic`](@ref)
 """
 function stepwise(df::DataFrame, lhs::Symbol; forward::Bool=true,
                   use_aic::Bool=true)::RegressionModel
-    rhs = forward ? Symbol[] : setdiff(names(df), [lhs])
+    rhs = forward ? Symbol[] : setdiff(propertynames(df), [lhs])
     while true
         rhs, improved = step(df, lhs, rhs, forward, use_aic)
         if(!improved)

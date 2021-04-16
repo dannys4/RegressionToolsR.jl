@@ -4,7 +4,7 @@ using GLM
 using DataFrames
 import Statistics: quantile, var, mean
 import LinearAlgebra: inv, diag, PosDefException
-import Distributions: TDist
+import Distributions: TDist, UnivariateDistribution
 using StatsBase
 
 export predint, rstudent, stepwise, step, glm_step, glm_stepwise
@@ -120,6 +120,14 @@ Create a formula for linear regression from a number of Symbols
 """
 function compose(lhs::Symbol, rhs::AbstractVector{Symbol})::FormulaTerm
     return Term(lhs) ~ sum([ConstantTerm(1), Term.(rhs)...]);
+end
+
+function compose(lhs::Symbol, rhs::AbstractVector{AbstractTerm})::FormulaTerm
+    return Term(lhs) ~ sum([ConstantTerm(1), rhs...]);
+end
+
+function compose(lhs::Symbol, rhs::AbstractTerm)::FormulaTerm
+    return Term(lhs) ~ ConstantTerm(1) + rhs;
 end
 
 """
@@ -281,6 +289,33 @@ function glm_step(df::DataFrame, lhs::Symbol, rhs::Symbol,
     return glm_step(df, lhs, [rhs], family, link, forward, use_aic);
 end
 
+function interact_fwd_step(df::DataFrame, lhs::Symbol, rhs::AbstractVector{AbstractTerm},
+                       family::UnivariateDistribution, link::GLM.Link, use_aic::Bool)::Tuple{Vector{AbstractTerm},Bool}
+    reg_terms = term.(setdiff(propertynames(df), [lhs]));
+    options = vcat(reg_terms, [reg_terms[i]&reg_terms[j] for i in 1:length(reg_terms)
+                                                         for j in (i+1):length(reg_terms)]);
+    fun = use_aic ? aic : bic
+    if(isempty(options))
+        return rhs, false;
+    end
+    best_fun = fun(glm(compose(lhs, rhs), df, family, link))
+    improved = false
+    best_rhs = rhs
+    for opt in options
+        this_rhs = [rhs; opt];
+        fm = compose(lhs, this_rhs);
+        println(this_rhs);
+        mdl = glm(fm, df, family, link);
+        this_fun = fun(mdl);
+        if this_fun < best_fun
+            best_fun = this_fun
+            best_rhs = this_rhs
+            improved = true
+        end
+    end
+    return best_rhs, improved
+end
+
 """
 Perform GLM stepwise regression on a dataframe, similar to stepAIC or stepBIC in R
 
@@ -302,8 +337,12 @@ WORK IN PROGRESS
 See also: [`glm`](@ref), [`lm`](@ref), [`aic`](@ref), [`bic`](@ref)
 """
 function glm_stepwise(df::DataFrame, lhs::Symbol, family::UnivariateDistribution,
-                      link::GLM.Link; forward::Bool=true, use_aic::Bool=true)::RegressionModel
+                      link::GLM.Link; forward::Bool=true, use_aic::Bool=true, interact::Bool=false)::RegressionModel
+    if !forward && interact
+        error("Does not support interaction with backward stepwise!");
+    end
     rhs = forward ? Symbol[] : setdiff(propertynames(df), [lhs])
+    improved = false;
     while true
         rhs, improved = glm_step(df, lhs, rhs, family, link, forward, use_aic)
         if(!improved)

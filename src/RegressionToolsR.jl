@@ -7,7 +7,7 @@ import LinearAlgebra: inv, diag, PosDefException
 import Distributions: TDist
 using StatsBase
 
-export predint, rstudent, stepwise, step
+export predint, rstudent, stepwise, step, glm_step, glm_stepwise
 
 """
 Predict the linear response of `xf` when using given *strictly* linear model. Model
@@ -216,4 +216,99 @@ function stepwise(df::DataFrame, lhs::Symbol; forward::Bool=true,
     end
 end
 
+"""
+Perform one step of stepwise regression on general model
+    `glm_step(df, lhs, rhs, family, link, forward, use_aic)`
+
+# Arguments
+    - `df::DataFrame`: DataFrame we are using
+    - `lhs::Symbol`: The dependent/response variable
+    - `rhs::AbstractVector{Symbol}`: The current used regressor variables
+    - `family::UnivariateDistribution`: Distribution to use (must be supported by GLM.jl)
+    - `link::GLM.Link`: Link function to use
+    - `forward::Bool`: Whether we use forward or backward steps
+    - `use_aic::Bool`: Whether to use `aic` or `bic`
+
+# Returns
+    - `best_rhs::Array{Symbol,1}`: A new `rhs` with at most one more regressor
+    - `improved::Bool`: Whether any new regression variable was added
+"""
+function glm_step(df::DataFrame, lhs::Symbol, rhs::AbstractVector{Symbol},
+                  family::UnivariateDistribution, link::GLM.Link,
+                  forward::Bool, use_aic::Bool)::Tuple{Vector{Symbol},Bool}
+    options = forward ? setdiff(Symbol.(names(df)), [lhs; rhs]) : rhs
+    fun = use_aic ? aic : bic
+    if(isempty(options))
+        return (rhs, false)
+    end
+    best_fun = fun(glm(compose(lhs, rhs), df, family, link))
+    improved = false
+    best_rhs = rhs
+    for opt in options
+        this_rhs = forward ? [rhs; opt] : setdiff(rhs, [opt])
+        fm = compose(lhs, this_rhs);
+        mdl = glm(fm, df, family, link);
+        this_fun = fun(mdl);
+        if this_fun < best_fun
+            best_fun = this_fun
+            best_rhs = this_rhs
+            improved = true
+        end
+    end
+    return best_rhs, improved
+end
+
+"""
+Perform one step of stepwise regression
+    glm_step(df, lhs, rhs, family, link, forward, use_aic)
+
+# Arguments
+    - `df::DataFrame`: DataFrame we are using
+    - `lhs::Symbol`: The dependent/response variable
+    - `rhs::Symbol`: The current used regressor 
+    - `family::UnivariateDistribution`: Distribution to use (must be supported by GLM.jl)
+    - `link::GLM.Link`: Link function to use
+    - `forward::Bool`: Whether we use forward or backward steps
+    - `use_aic::Bool`: Whether to use `aic` or `bic`
+
+# Returns
+    - `best_rhs::Array{Symbol,1}`: A new `rhs` with at most one more regressor
+    - `improved::Bool`: Whether any new regression variable was added
+"""
+function glm_step(df::DataFrame, lhs::Symbol, rhs::Symbol,
+                  family::UnivariateDistribution, link::GLM.Link,
+                  forward::Bool, use_aic::Bool)::Tuple{Vector{Symbol},Bool}
+    return glm_step(df, lhs, [rhs], family, link, forward, use_aic);
+end
+
+"""
+Perform GLM stepwise regression on a dataframe, similar to stepAIC or stepBIC in R
+
+    `glm_stepwise(df, lhs, family, link; forward = true, use_aic = true)`
+
+# Arguments
+    - `df::DataFrame`: The DataFrame that is being modeled
+    - `lhs::Symbol`: A symbolic version of the column being regressed on
+    - `family::UnivariateDistribution`: Distribution to use (must be supported by GLM.jl)
+    - `link::GLM.Link`: Link function to use
+    - `forward::Bool`: *optional* Whether to do forward or backward regression
+    - `use_aic::Bool`: *optional* Whether to use `aic` function or `bic` function.
+# Returns
+    - `mdl::RegressionModel`: A generalized linear model representing the best terms to use
+
+# Examples
+WORK IN PROGRESS
+
+See also: [`glm`](@ref), [`lm`](@ref), [`aic`](@ref), [`bic`](@ref)
+"""
+function glm_stepwise(df::DataFrame, lhs::Symbol, family::UnivariateDistribution,
+                      link::GLM.Link; forward::Bool=true, use_aic::Bool=true)::RegressionModel
+    rhs = forward ? Symbol[] : setdiff(propertynames(df), [lhs])
+    while true
+        rhs, improved = glm_step(df, lhs, rhs, family, link, forward, use_aic)
+        if(!improved)
+            return glm(compose(lhs, rhs), df, family, link);
+        end
+    end
+end
 end # module
